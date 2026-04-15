@@ -1,4 +1,4 @@
-module github.com/oapi-codegen/echo-middleware/v5
+module github.com/oapi-codegen/echo-middleware/echov5
 
 go 1.25.0
 
