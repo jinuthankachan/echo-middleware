@@ -25,7 +25,7 @@ generate:
 	go generate ./...
 
 test:
-	echo "=== ROOT MODULE (Echo v4) ===" && go test -cover ./... -v && echo "" && echo "=== ECHOV5 SUBMODULE (Echo v5) ===" && cd echov5 && go test -cover ./... -v .
+	go test -cover ./...
 
 tidy:
 	@echo "tidy..."
