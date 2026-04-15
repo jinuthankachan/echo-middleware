@@ -131,11 +131,20 @@ func OapiRequestValidatorWithOptions(spec *openapi3.T, options *Options) echo.Mi
 func ValidateRequestFromContext(ctx *echo.Context, router routers.Router, options *Options) *echo.HTTPError {
 	req := ctx.Request()
 
+	// Track whether we are working on a clone of the original request.
+	// When Prefix is set, we clone the request to strip the prefix from
+	// the path before route matching. req.Clone makes a shallow copy of
+	// Body, so the clone and the original share the same underlying reader.
+	// openapi3filter reads + restores the body only on the clone; the
+	// original ctx.Request().Body is left exhausted after validation.
+	// We fix this by restoring the original request body after validation.
+	usingClone := false
 	if options != nil && options.Prefix != "" {
 		// Clone the request so downstream handlers still see the original path.
 		clone := req.Clone(req.Context())
 		clone.URL.Path = strings.TrimPrefix(clone.URL.Path, options.Prefix)
 		req = clone
+		usingClone = true
 	}
 
 	route, pathParams, err := router.FindRoute(req)
@@ -226,6 +235,20 @@ func ValidateRequestFromContext(ctx *echo.Context, router routers.Router, option
 				}
 		}
 	}
+
+	// When we validated against a clone, openapi3filter restores the body only
+	// on the clone (validationInput.Request). The original ctx.Request().Body
+	// shares the same underlying io.Reader, which is now exhausted. Restore it
+	// from GetBody so downstream handlers can read the body as normal.
+	if usingClone {
+		origReq := ctx.Request()
+		if origReq.GetBody != nil {
+			if body, err := origReq.GetBody(); err == nil {
+				origReq.Body = body
+			}
+		}
+	}
+
 	return nil
 }
 
